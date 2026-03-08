@@ -66,7 +66,8 @@ export const Store = {
                 currency: '₱',
                 timezone: 'Asia/Manila',
                 resetTime: '00:00'
-            }
+            },
+            exclusionSets: []
         };
 
         if (!data) return defaultState;

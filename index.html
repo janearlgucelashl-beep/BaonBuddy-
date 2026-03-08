@@ -179,6 +179,9 @@
                                     <canvas id="plan-history-chart"></canvas>
                                 </div>
                             </div>
+                            <button id="open-prediction-btn" class="btn-primary" style="background: var(--text); box-shadow: none;">
+                                <i data-lucide="zap" size="16"></i> Predict Future Savings
+                            </button>
                         </div>
 
                         <!-- SETTINGS TAB -->
@@ -237,7 +240,10 @@
                                 <hr>
                                 <div class="section-header">
                                     <label style="font-size: 11px; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Exclusion Periods</label>
-                                    <button id="add-exclusion-btn" class="btn-icon"><i data-lucide="calendar-plus" size="16"></i></button>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button id="open-load-set-btn" class="btn-text-small" style="color: var(--primary-dark); padding: 0 8px;"><i data-lucide="library" size="14"></i> Load Set</button>
+                                        <button id="add-exclusion-btn" class="btn-icon"><i data-lucide="calendar-plus" size="16"></i></button>
+                                    </div>
                                 </div>
                                 <div id="exclusions-list" class="exclusions-list">
                                     <!-- Exclusion items here -->
@@ -294,6 +300,9 @@
                             <small style="color: var(--text-light); font-size: 10px;">The app will roll over to a new day at this time.</small>
                         </div>
                         <button id="save-settings-btn" class="btn-primary" style="margin-top: 15px;">Save Config</button>
+                        <button id="open-excl-sets-btn" class="btn-secondary" style="width: 100%; margin-top: 15px; background: #fffde7; color: var(--text); border: 1px solid var(--secondary); box-shadow: none;">
+                            <i data-lucide="layers" size="16" style="vertical-align: middle; margin-right: 4px;"></i> Manage Exclusion Sets
+                        </button>
                         <button id="open-data-mgmt-btn" class="btn-secondary" style="width: 100%; margin-top: 15px; background: #e0f2f1; color: var(--primary-dark); box-shadow: none;">Backup & Restore</button>
                         <button id="reset-settings-btn" class="btn-text" style="width: 100%; margin-top: 10px; color: var(--danger); font-weight: 800;">Reset to Default</button>
                     </div>
@@ -411,6 +420,82 @@
                 <div class="modal-actions">
                     <button id="confirm-cancel" class="btn-text">No</button>
                     <button id="confirm-ok" class="btn-danger">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Modal -->
+        <div id="prediction-modal" class="overlay hidden">
+            <div class="modal">
+                <h3>Future Prediction</h3>
+                <p style="font-size: 12px; color: var(--text-light);">Select a future date to estimate your progress.</p>
+                <div class="form-group">
+                    <label>Scenario Date</label>
+                    <input type="date" id="prediction-date">
+                </div>
+                <div id="prediction-results" class="hidden" style="background: #f8fcfd; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid var(--border);">
+                    <div style="text-align:center">
+                        <small style="text-transform: uppercase; font-weight: 800; color: var(--text-light);">Estimated Total Saved</small>
+                        <h2 id="pred-total" style="margin: 5px 0; color: var(--primary-dark);">₱0.00</h2>
+                        <div class="progress-container" style="margin: 10px 0;">
+                            <div id="pred-progress-bar" class="progress-bar"></div>
+                        </div>
+                        <p id="pred-percent" style="font-weight: 800; color: var(--primary); margin: 0;">0% Complete</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="close-prediction-modal" class="btn-text">Close</button>
+                    <button id="calculate-prediction-btn" class="btn-primary">Estimate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exclusion Sets Modal -->
+        <div id="excl-sets-modal" class="overlay hidden">
+            <div class="modal" style="max-width: 400px; width: 95%;">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin:0">Exclusion Sets</h3>
+                    <button id="add-new-set-btn" class="btn-icon"><i data-lucide="plus-circle"></i></button>
+                </div>
+                <div id="excl-sets-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+                    <!-- List of sets -->
+                </div>
+                <div class="modal-actions">
+                    <button id="close-excl-sets-modal" class="btn-primary">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exclusion Set Editor Modal -->
+        <div id="excl-set-editor-modal" class="overlay hidden">
+            <div class="modal">
+                <h3>Edit Exclusion Set</h3>
+                <div class="form-group">
+                    <label>Set Name</label>
+                    <input type="text" id="set-editor-name" placeholder="e.g. Christmas Holidays">
+                </div>
+                <label style="font-size: 11px; font-weight: 800; color: var(--text-light); text-transform: uppercase; display: block; margin-bottom: 8px;">Date Ranges (Max 5)</label>
+                <div id="set-editor-ranges">
+                    <!-- Range inputs -->
+                </div>
+                <button id="add-range-to-set-btn" class="btn-text-small" style="margin-top: 5px;"><i data-lucide="plus" size="14"></i> Add Range</button>
+                <div class="modal-actions">
+                    <button id="close-set-editor-modal" class="btn-text">Cancel</button>
+                    <button id="save-set-btn" class="btn-primary">Save Set</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load Set Selector Modal -->
+        <div id="load-set-modal" class="overlay hidden">
+            <div class="modal">
+                <h3>Load Exclusion Set</h3>
+                <p style="font-size: 11px; color: var(--text-light); margin-bottom: 15px;">Select a set to add its dates to this plan.</p>
+                <div id="load-set-list" class="list-container" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Sets to load -->
+                </div>
+                <div class="modal-actions">
+                    <button id="close-load-set-modal" class="btn-text">Cancel</button>
                 </div>
             </div>
         </div>

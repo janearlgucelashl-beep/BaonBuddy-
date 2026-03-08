@@ -653,33 +653,84 @@ function setupEvents() {
         showScreen('home-screen');
     };
     // PASTE YOUR CODE HERE:
-    // --- Data Management (Backup & Restore) ---
+    // Data Management
     document.getElementById('open-data-mgmt-btn').onclick = () => {
-        showScreen('data-mgmt-screen');
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('data-mgmt-screen').classList.add('active');
     };
-
     document.getElementById('back-from-data-mgmt').onclick = () => {
         document.getElementById('data-mgmt-screen').classList.remove('active');
         document.getElementById('settings-global-screen').classList.add('active');
     };
 
-    document.getElementById('export-data-btn').onclick = async () => {
-        await DataManager.exportState(state);
+    document.getElementById('export-data-btn').onclick = () => DataManager.exportState(state);
+
+    // Exclusion Sets Global Management
+    document.getElementById('open-excl-sets-btn').onclick = () => {
+        renderExclusionSetsList();
+        document.getElementById('excl-sets-modal').classList.remove('hidden');
+    };
+    document.getElementById('close-excl-sets-modal').onclick = () => {
+        document.getElementById('excl-sets-modal').classList.add('hidden');
+    };
+    document.getElementById('add-new-set-btn').onclick = () => {
+        openSetEditor(null);
+    };
+
+    // Load Set in Plan
+    document.getElementById('open-load-set-btn').onclick = () => {
+        renderLoadSetList();
+        document.getElementById('load-set-modal').classList.remove('hidden');
+    };
+    document.getElementById('close-load-set-modal').onclick = () => {
+        document.getElementById('load-set-modal').classList.add('hidden');
+    };
+
+    // Prediction Modal
+    document.getElementById('open-prediction-btn').onclick = () => {
+        document.getElementById('prediction-results').classList.add('hidden');
+        document.getElementById('prediction-date').value = '';
+        document.getElementById('prediction-modal').classList.remove('hidden');
+    };
+    document.getElementById('close-prediction-modal').onclick = () => {
+        document.getElementById('prediction-modal').classList.add('hidden');
+    };
+    document.getElementById('calculate-prediction-btn').onclick = () => {
+        const scenarioDateStr = document.getElementById('prediction-date').value;
+        if (!scenarioDateStr) return alert('Select a date');
+        
+        const plan = state.plans.find(p => p.id === currentPlanId);
+        const scenarioDate = new Date(scenarioDateStr + 'T00:00:00');
+        const today = getSettingsDate();
+        
+        if (scenarioDate < today) return alert('Please select a future date');
+        
+        const daysLeft = countCalculationDays(today, scenarioDate, plan.exclusions || []);
+        const dailyGoal = plan.dailySavingsGoal || (plan.useEndDate ? calculateRequiredDaily(plan, plan.dailyAllowance || 100) : 0);
+        
+        const expectedNewSavings = daysLeft * dailyGoal;
+        const totalExpected = (plan.totalSaved || 0) + expectedNewSavings;
+        const progress = plan.goal ? Math.min(100, (totalExpected / plan.goal) * 100) : 100;
+
+        document.getElementById('pred-total').innerText = formatCurrency(totalExpected);
+        document.getElementById('pred-progress-bar').style.width = `${progress}%`;
+        document.getElementById('pred-percent').innerText = `${progress.toFixed(1)}% Complete`;
+        document.getElementById('prediction-results').classList.remove('hidden');
     };
 
     document.getElementById('import-data-btn').onclick = async () => {
         const fileInput = document.getElementById('import-file-input');
         const textArea = document.getElementById('import-text-area');
-        
         const importedData = await DataManager.importState(fileInput, textArea);
-        
+
         if (importedData) {
             state = importedData;
-            saveState();
+            await saveState();
             alert('Data restored successfully! The app will now reload.');
-            window.location.reload(); 
+            window.location.reload();
         }
     };
+
     // Create Plan
     document.getElementById('add-plan-btn').onclick = () => {
         document.getElementById('plan-modal').classList.remove('hidden');
@@ -892,9 +943,131 @@ function setupEvents() {
     };
     document.getElementById('confirm-cancel').onclick = () => document.getElementById('confirm-modal').classList.add('hidden');
 
+    // Set Editor Events
+    document.getElementById('save-set-btn').onclick = () => {
+        const id = document.getElementById('excl-set-editor-modal').dataset.editingId;
+        const name = document.getElementById('set-editor-name').value || "Unnamed Set";
+        const ranges = [];
+        document.querySelectorAll('.set-editor-range-row').forEach(row => {
+            const start = row.querySelector('.range-start').value;
+            const end = row.querySelector('.range-end').value;
+            if (start && end) ranges.push({ start, end });
+        });
+
+        if (id) {
+            const idx = state.exclusionSets.findIndex(s => s.id === id);
+            state.exclusionSets[idx] = { ...state.exclusionSets[idx], name, ranges };
+        } else {
+            state.exclusionSets.push({ id: Date.now().toString(), name, ranges });
+        }
+
+        saveState();
+        renderExclusionSetsList();
+        document.getElementById('excl-set-editor-modal').classList.add('hidden');
+    };
+    document.getElementById('add-range-to-set-btn').onclick = () => {
+        const container = document.getElementById('set-editor-ranges');
+        if (container.children.length >= 5) return alert("Maximum 5 ranges allowed.");
+        addRangeRowToEditor();
+    };
+    document.getElementById('close-set-editor-modal').onclick = () => {
+        document.getElementById('excl-set-editor-modal').classList.add('hidden');
+    };
+}
+
+function renderExclusionSetsList() {
+    const list = document.getElementById('excl-sets-list');
+    if (!state.exclusionSets || state.exclusionSets.length === 0) {
+        list.innerHTML = `<p style="text-align:center; color:var(--text-light); padding:20px;">No sets saved.</p>`;
+        return;
+    }
+    list.innerHTML = state.exclusionSets.map(set => `
+        <div class="card" style="margin-bottom: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong style="display:block;">${set.name}</strong>
+                <small style="color:var(--text-light)">${set.ranges.length} range(s)</small>
+            </div>
+            <div style="display:flex; gap: 8px;">
+                <button class="btn-icon" onclick="window.editSet('${set.id}')"><i data-lucide="edit-2" size="16"></i></button>
+                <button class="btn-icon" style="color:var(--danger)" onclick="window.deleteSet('${set.id}')"><i data-lucide="trash-2" size="16"></i></button>
+            </div>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+function renderLoadSetList() {
+    const list = document.getElementById('load-set-list');
+    if (!state.exclusionSets || state.exclusionSets.length === 0) {
+        list.innerHTML = `<p style="text-align:center; color:var(--text-light); padding:10px;">No exclusion sets found. Create some in Global Settings!</p>`;
+        return;
+    }
+    list.innerHTML = state.exclusionSets.map(set => `
+        <div class="card" style="margin-bottom: 8px; padding: 10px; cursor: pointer;" onclick="window.applySetToPlan('${set.id}')">
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+                <strong>${set.name}</strong>
+                <i data-lucide="download" size="16"></i>
+            </div>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
+
+function openSetEditor(id) {
+    const modal = document.getElementById('excl-set-editor-modal');
+    const container = document.getElementById('set-editor-ranges');
+    const nameInput = document.getElementById('set-editor-name');
+    container.innerHTML = '';
+    
+    if (id) {
+        const set = state.exclusionSets.find(s => s.id === id);
+        modal.dataset.editingId = id;
+        nameInput.value = set.name;
+        set.ranges.forEach(r => addRangeRowToEditor(r.start, r.end));
+    } else {
+        modal.dataset.editingId = '';
+        nameInput.value = '';
+        addRangeRowToEditor();
+    }
+    
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function addRangeRowToEditor(start = '', end = '') {
+    const container = document.getElementById('set-editor-ranges');
+    const row = document.createElement('div');
+    row.className = 'form-row set-editor-range-row';
+    row.style.marginBottom = '8px';
+    row.innerHTML = `
+        <input type="date" class="range-start" value="${start}" style="flex:1">
+        <input type="date" class="range-end" value="${end}" style="flex:1">
+        <button class="btn-icon" onclick="this.parentElement.remove()" style="color:var(--danger)"><i data-lucide="x" size="14"></i></button>
+    `;
+    container.appendChild(row);
+    lucide.createIcons();
 }
 
 // Global window helpers for dynamic HTML
+window.editSet = (id) => openSetEditor(id);
+window.deleteSet = (id) => {
+    if (!confirm("Delete this set?")) return;
+    state.exclusionSets = state.exclusionSets.filter(s => s.id !== id);
+    saveState();
+    renderExclusionSetsList();
+};
+window.applySetToPlan = (id) => {
+    const plan = state.plans.find(p => p.id === currentPlanId);
+    const set = state.exclusionSets.find(s => s.id === id);
+    plan.exclusions = plan.exclusions || [];
+    plan.exclusions.push(...JSON.parse(JSON.stringify(set.ranges)));
+    
+    refreshPlanTarget(plan);
+    saveState();
+    renderExclusions();
+    updatePlanHubUI();
+    document.getElementById('load-set-modal').classList.add('hidden');
+};
 window.openPlanHub = openPlanHub;
 window.deleteProduct = (idx) => {
     const plan = state.plans.find(p => p.id === currentPlanId);

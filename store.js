@@ -68,7 +68,8 @@ export const Store = {
                 resetTime: '00:00',
                 excludedDays: [0, 6] // Default Sun, Sat
             },
-            exclusionSets: []
+            exclusionSets: [],
+            moneyTemplates: []
         };
 
         if (!data) return defaultState;
